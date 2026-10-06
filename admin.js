@@ -1,5 +1,6 @@
 // Painel administrativo. A segurança real é feita pelo banco (RLS, schema.sql);
 // as checagens aqui servem apenas para a interface.
+const ADMIN_EMAIL = 'felipefreire@gmail.com';
 const S={user:null,admin:false},ST=['Ativo','Cancelado','Substituído','Pendente Confirmação','Confirmado'];
 const $=id=>document.getElementById(id);
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
