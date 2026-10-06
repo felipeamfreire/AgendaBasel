@@ -14,13 +14,11 @@ async function setUser(s) {
   const u = s && s.user;
   S.user = u || null;
   
-  // Garantia de comparação case-insensitive com o e-mail definido em config.js
   const emailValido = typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL.toLowerCase() : 'felipefreire@gmail.com';
   S.admin = !!u && u.email.toLowerCase() === emailValido;
 
-  // Recarrega os dados com as permissões atualizadas de RLS
-  await load();
-  render();
+  if (typeof load === 'function') await load();
+  if (typeof render === 'function') render();
 }
 
 function squeeze(f) {
@@ -126,25 +124,12 @@ function adminView() {
   
   if (!S.admin) return `<div class="adm"><b>Acesso Negado</b><p>A conta <b>${E(S.user.email)}</b> não está autorizada como administradora.</p><button class="btn" onclick="logout()">Sair / Trocar de Conta</button></div>`;
 
-  const ds = [...Array(7)].map((_, i) => addD(weekStart(cur), i)), opt = P.map(p => `<option value="${p.id}">${E(p.n)}</option>`).join('');
+  const dataAtual = typeof cur !== 'undefined' ? cur : new Date();
+  const ds = [...Array(7)].map((_, i) => addD(weekStart(dataAtual), i)), opt = P.map(p => `<option value="${p.id}">${E(p.n)}</option>`).join('');
   let h = `<div class="adm">${E(S.user.email)} <button class="btn" onclick="logout()">Sair</button> <button class="btn" onclick="gen()">Regenerar agenda (120 dias)</button></div>`;
   
   h += `<details open><summary><b>Parceiros</b></summary><div class="bar"><input id="f_n" placeholder="Nome da operação"><select id="f_c">${CATS.map(c => `<option>${c}</option>`).join('')}</select><input id="f_k" placeholder="Culinária"><input id="f_r" placeholder="Responsável"><input id="f_t" placeholder="WhatsApp (5519...)"></div><div class="bar">Logo <input type="file" id="f_logo" accept="image/*"> Cardápios <input type="file" id="f_cards" multiple accept="image/*,.pdf"><button class="btn pri" onclick="addP()">Cadastrar</button></div>`
     + P.map(p => `<div class="row"><span><b>${E(p.n)}</b> · ${E(p.c)} · ${E(p.k)}<br>${(CARD[p.id] || []).map((c, i) => `<a href="${c.cardapio_url}" target="_blank" rel="noopener">#${i + 1}</a> <button class="btn" onclick="mvC(${p.id},${c.id},-1)">↑</button><button class="btn" onclick="mvC(${p.id},${c.id},1)">↓</button><button class="btn" onclick="delC(${c.id})">✕</button> `).join('')}</span><input type="file" multiple id="ac${p.id}" accept="image/*,.pdf"><button class="btn" onclick="addC(${p.id})">+ Cardápio</button><button class="btn" onclick="delP(${p.id})">Excluir</button></div>`).join('') + '</details>';
   
   h += `<details><summary><b>Escala e recorrência</b></summary><div class="bar"><select id="r_p">${opt}</select><label><input type="checkbox" id="r_rec" checked> Recorrente</label><select id="r_per"><option>semanal</option><option>quinzenal</option><option>mensal</option></select><select id="r_dia">${DIAS.map(d => `<option>${d}</option>`).join('')}</select></div><div class="bar">Início <input type="date" id="r_i"> Fim <input type="date" id="r_f"> Pontual <input type="date" id="r_e"><button class="btn" onclick="prevR()">Prévia</button><button class="btn pri" onclick="saveR()">Salvar</button></div><div id="prev"></div>`
-    + REC.map(r => `<div class="row"><span>${E(nomeP(r.parceiro_id))} · ${r.recorrente ? r.periodicidade + ' · ' + r.dia_semana : 'pontual ' + r.data_especifica}</span><button class="btn" onclick="delR(${r.id})">Excluir</button></div>`).join('') + '</details>';
-  
-  h += `<details open><summary><b>Agenda da semana</b></summary><div class="bar"><button class="btn" onclick="nav(-7)">‹</button> ${br(ds[0])} <button class="btn" onclick="nav(7)">›</button></div>`;
-  ds.forEach(d => day(d, 1).forEach(p => {
-    if (!p.ag) return;
-    h += `<div class="row"><span>${DIAS[d.getDay()].slice(0, 3)} ${br(d)} · <b>${E(p.n)}</b></span><select onchange="setSt(${p.ag.id},this.value)">${ST.map(x => `<option ${x === p.ag.status ? 'selected' : ''}>${x}</option>`).join('')}</select><a class="btn" target="_blank" rel="noopener" href="https://wa.me/${p.t}?text=${encodeURIComponent(`Bom dia ${p.n}, podemos confirmar agenda do dia${br(d)}?`)}">WhatsApp</a></div>`
-  }));
-  
-  h += `</details><details><summary><b>Vaga disponível</b></summary><div class="bar"><input id="vd" type="date" value="${iso(cur)}"><select id="vc"><option value="">Todas as categorias</option>${CATS.map(c => `<option>${c}</option>`).join('')}</select><button class="btn pri" onclick="vaga()">Abrir WhatsApp dos parceiros</button></div></details>`;
-  
-  h += `<details><summary><b>Eventos especiais</b></summary><div class="bar"><input id="e_t" placeholder="Título"><input id="e_d" type="date"><input id="e_h" placeholder="Horário (14:00 às 22:00)"></div><div class="bar"><input id="e_s" placeholder="Descrição"><select id="e_tr" multiple size="4">${opt}</select><button class="btn pri" onclick="addE()">Salvar evento</button></div>`
-    + EV.map(e => `<div class="row"><span>${E(e.t)} · ${br(pd(e.d))}</span><button class="btn" onclick="delE(${e.id})">Excluir</button></div>`).join('') + '</details>';
-  
-  return h;
-}
+    + REC.map(r => `<div class="row"><span>${E(nomeP(r.parceiro_id))} · ${r.recorrente ? r.periodicidade + ' · ' + r.dia_semana : 'pontual ' + r.data_especifica}</span><button class="btn" onclick="delR(${r.id})">Excluir</button></div>`).join('') +
