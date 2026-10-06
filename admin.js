@@ -6,6 +6,8 @@ const $=id=>document.getElementById(id);
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ok=r=>{if(r.error){alert(r.error.message);throw r.error}return r};
 const refresh=async()=>{await load();render()};
+// Se uma etapa passar de 20s, avisa qual foi em vez de ficar "Salvando…" para sempre.
+const T=(label,p)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>{const e=new Error('Travou na etapa: '+label+'. Recarregue a página, entre de novo e confira se o parceiro já foi criado antes de tentar outra vez.');e.timeout=true;rej(e)},20000))]);
 const horizonte=()=>iso(addD(new Date(),120));
 const wa=t=>{t=String(t||'').replace(/\D/g,'');return t&&t.length<=11?'55'+t:t};
 const opts=(a,sel)=>a.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).join('');
@@ -100,12 +102,12 @@ async function saveP(){const b=$('btnP');
   const row={nome_operacao:g('f_n'),categoria:$('f_c').value,culinaria:g('f_k'),nome_responsavel:g('f_r')||null,contato_responsavel:g('f_t').replace(/\D/g,'')||null};
   const lf=$('f_logo').files[0];if(lf){const s=await squeeze(lf);if(s)row.logo_url=await up(s,'logos')}
   let id=S.eP;
-  if(id)ok(await sb.from('parceiros').update(row).eq('id',id));
-  else id=ok(await sb.from('parceiros').insert(row).select().single()).data.id;
+  if(id)ok(await T('gravar parceiro',sb.from('parceiros').update(row).eq('id',id)));
+  else id=ok(await T('gravar parceiro',sb.from('parceiros').insert(row).select().single())).data.id;
   const L=CARD[id]||[];await addCards(id,$('f_cards').files,L.length?Math.max(...L.map(x=>x.ordem))+1:0);
-  await saveRule(id,rule);
-  S.eP=id;await refresh();alert('Parceiro salvo.')}
- catch(e){console.error(e);const x=$('btnP');if(x){x.disabled=false;x.textContent='Salvar'}}}
+  await T('escala e agenda',saveRule(id,rule));
+  S.eP=id;await T('recarregar dados',refresh());alert('Parceiro salvo.')}
+ catch(e){console.error(e);if(e&&e.timeout)alert(e.message);const x=$('btnP');if(x){x.disabled=false;x.textContent='Salvar'}}}
 async function delP(id){if(!confirm('Excluir parceiro, cardápios e agenda dele?'))return;
  ok(await sb.from('parceiros').delete().eq('id',id));S.eP=null;refresh()}
 

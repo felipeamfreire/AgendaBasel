@@ -121,7 +121,11 @@ async function banner(){const l=day(cur),b=document.getElementById('banner');
 document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
 async function init(){
  const {data}=await sb.auth.getSession();await setUser(data.session);await load();render();
- sb.auth.onAuthStateChange(async(ev,ses)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await setUser(ses);await load();render()}})}
+ sb.auth.onAuthStateChange((ev,ses)=>{
+  // Não usar await do supabase dentro do callback (trava o cliente); adiar com setTimeout.
+  // Ignora SIGNED_IN repetido (ex.: ao voltar para a aba) para não apagar formulários.
+  const uid=ses&&ses.user?ses.user.id:null,mesmo=(uid||null)===(S.user?S.user.id:null);
+  if((ev==='SIGNED_IN'||ev==='SIGNED_OUT')&&!mesmo)setTimeout(async()=>{await setUser(ses);await load();render()},0)})}
 init();
 </script>
 </body>
