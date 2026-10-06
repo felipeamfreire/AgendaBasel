@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<link rel="icon" type="image/png" href="favicon.png">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Agenda de Food Trucks do Basel</title>
@@ -85,8 +86,8 @@ function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.lo
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
- document.getElementById('nav').innerHTML=[['hoje','Hoje no Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button type="button" class="${view===k?'on':''}" onclick="event.preventDefault();view='${k}';render()">${l}</button>`).join('');
-  const a=document.getElementById('app');let h='';
+ document.getElementById('nav').innerHTML=[['hoje','Hoje no Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}" onclick="view='${k}';render()">${l}</button>`).join('');
+ const a=document.getElementById('app');let h='';
  if(view==='hoje')h=vHoje();else if(view==='sem')h=vSem();else if(view==='mes')h=vMes();else h=vAdm();
  a.innerHTML=h;
  if(keep){const i=a.querySelector('input[placeholder^="Buscar"]');if(i){i.focus();i.setSelectionRange(99,99)}}}
@@ -120,18 +121,8 @@ async function banner(){const l=day(cur),b=document.getElementById('banner');
  try{const cv=await html2canvas(b,{backgroundColor:'#fff'});const a=document.createElement('a');a.download='hoje-no-basel.png';a.href=cv.toDataURL('image/png');a.click()}catch(e){alert('Não foi possível gerar o banner.')}}
 document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
 async function init(){
-  const {data}=await sb.auth.getSession();
-  await setUser(data?.session);
-  await load();
-  render();
-  sb.auth.onAuthStateChange(async(ev,ses)=>{
-    if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'||ev==='TOKEN_REFRESHED'){
-      await setUser(ses);
-      await load();
-      render();
-    }
-  });
-}
+ const {data}=await sb.auth.getSession();await setUser(data.session);await load();render();
+ sb.auth.onAuthStateChange(async(ev,ses)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await setUser(ses);await load();render()}})}
 init();
 </script>
 </body>
