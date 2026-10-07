@@ -26,6 +26,7 @@ main{max-width:1000px;margin:0 auto;padding:14px}
 h2{font-size:1.15rem;margin:6px 0 12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
 .av{width:52px;height:52px;border-radius:50%;background:var(--ink);color:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.wa{font-size:.85rem;color:#128C7E;text-decoration:none;font-weight:600}.wa:hover{text-decoration:underline}
 .card .i{flex:1;min-width:0}.card b{display:block}.card small{color:var(--mut)}
 .tag{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:10px;margin-top:4px;background:#e6e6e6;color:#333}
 .tag.fx{background:#d6f0e0;color:#14532d}
@@ -84,7 +85,9 @@ function day(d,inc){const k=iso(d),ev=evOn(d),out=[];
 let view='hoje',cur=new Date(),f={cat:'',cul:'',q:''},admin=false;
 const tag=p=>p.fx?'<span class="tag fx">Parceiro Fixo</span>':'<span class="tag">Parceiro Extra</span>';
 function filt(l){return l.filter(p=>(!f.cat||p.c===f.cat)&&(!f.cul||p.k===f.cul)&&(!f.q||p.n.toLowerCase().includes(f.q.toLowerCase())))}
-function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${EM[p.c]} ${p.c} · ${p.k}</small><br>${tag(p)}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
+const telWa=t=>{t=String(t||'').replace(/\D/g,'');return t&&t.length<=11?'55'+t:t};
+const telFmt=t=>{t=String(t||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');return t.length===11?`(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`:t.length===10?`(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`:t};
+function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${EM[p.c]} ${p.c} · ${p.k}</small><br>${tag(p)}${p.t?`<br><a class="wa" href="https://wa.me/${telWa(p.t)}" target="_blank" rel="noopener">💬 ${telFmt(p.t)}</a>`:''}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){

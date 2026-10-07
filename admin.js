@@ -75,7 +75,23 @@ ${S.eP?`<div><b>Cardápios atuais</b><div id="cardlist">${cardList(S.eP)}</div><
 <div class="bar">${fld('Início da recorrência',`<input type="date" id="r_i" value="${v(r.inicio_recorrencia)}">`)}${fld('Fim da recorrência (opcional)',`<input type="date" id="r_f" value="${v(r.fim_recorrencia)}">`)}</div></div>
 <div id="rec_off" style="display:${rec?'none':''}" onchange="prevR()"><div class="bar">${fld('Data pontual',`<input type="date" id="r_e" value="${v(r.data_especifica)}">`)}</div></div>
 <div id="prev">${prevHTML(r)}</div>
+${S.eP?`<h2>Datas agendadas</h2><div id="datelist">${dateList(S.eP)}</div>`:''}
 <div class="bar" style="margin-top:12px"><button class="btn pri" id="btnP" onclick="saveP()">Salvar</button>${S.eP?`<button class="btn" onclick="pickP('')">Cancelar edição</button><button class="btn" onclick="delP(${S.eP})">Excluir parceiro</button>`:''}</div>`}
+
+/* ---------- datas agendadas do parceiro (seleção e exclusão) ---------- */
+function dateList(id){const l=AG.filter(x=>x.parceiro_id===id).sort((p,q)=>p.data<q.data?-1:p.data>q.data?1:0),hj=iso(new Date());
+ if(!l.length)return '<small>Nenhuma data agendada.</small>';
+ return `<label><input type="checkbox" onchange="document.querySelectorAll('.ag_sel').forEach(c=>c.checked=this.checked)"> <b>Selecionar todas (${l.length})</b></label>
+<div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin:6px 0">`
+ +l.map(x=>`<label style="display:block;padding:2px 0;${x.data<hj?'opacity:.55':''}"><input type="checkbox" class="ag_sel" value="${x.id}"> ${DIAS[pd(x.data).getDay()]} ${br(pd(x.data))}${x.status!=='Ativo'?` <small>(${E(x.status)})</small>`:''}${x.data<hj?' <small>(passada)</small>':''}</label>`).join('')
+ +`</div><button class="btn" onclick="delDates()">Excluir datas selecionadas</button>`}
+const reloadDates=async()=>{await load();const e=$('datelist');if(e)e.innerHTML=dateList(S.eP)};
+async function delDates(){const ids=[...document.querySelectorAll('.ag_sel:checked')].map(x=>+x.value);
+ if(!ids.length){alert('Selecione ao menos uma data.');return}
+ if(!confirm(`Excluir ${ids.length} data(s) da agenda deste parceiro?`))return;
+ try{const r=ok(await T('excluir datas',sb.from('agenda_gerada').delete().in('id',ids).select()));
+  if(r.data.length!==ids.length)alert(`Atenção: só ${r.data.length} de ${ids.length} datas foram excluídas.`);
+  await reloadDates()}catch(e){console.error(e);if(e&&e.timeout)alert(e.message)}}
 
 function ruleForm(){
  if($('r_rec').checked){const i=$('r_i').value,f=$('r_f').value;
