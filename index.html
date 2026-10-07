@@ -97,7 +97,7 @@ function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.lo
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
- document.getElementById('nav').innerHTML=[['hoje','Hoje no Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="view='${k}';render()">${l}</button>`).join('');
+ document.getElementById('nav').innerHTML=[['hoje','Dia'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="view='${k}';render()">${l}</button>`).join('');
  const a=document.getElementById('app');let h='';
  if(view==='hoje')h=vHoje();else if(view==='sem')h=vSem();else if(view==='mes')h=vMes();else h=vAdm();
  a.innerHTML=h;
