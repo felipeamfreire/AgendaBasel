@@ -66,7 +66,8 @@ async function load(){
  const [a,b,c,d,r]=await Promise.all([sb.from(S.admin?'parceiros':'parceiros_publico').select('*'),sb.from('agenda_gerada').select('*'),sb.from('eventos_especiais').select('*').order('data'),sb.from('cardapios_parceiro').select('*').order('ordem'),sb.from('recorrencias_parceiro').select('*')]);
  if(a.error)console.error(a.error);
  REC=r.data||[];AG=b.data||[];
- P=(a.data||[]).map(p=>({id:p.id,n:p.nome_operacao,c:p.categoria,k:p.culinaria,r:p.nome_responsavel,t:p.contato_responsavel||'',logo:p.logo_url,fx:REC.some(x=>x.parceiro_id===p.id&&x.recorrente)}));
+ P=(a.data||[]).map(p=>({id:p.id,n:p.nome_operacao,c:p.categoria,k:p.culinaria,r:p.nome_responsavel,t:p.contato_responsavel||'',logo:p.logo_url,fx:REC.some(x=>x.parceiro_id===p.id&&x.recorrente)}))
+  .sort((x,y)=>CATS.indexOf(x.c)-CATS.indexOf(y.c)||x.n.localeCompare(y.n,'pt-BR',{sensitivity:'base'}));
  EV=(c.data||[]).map(e=>({...e,t:e.titulo,d:e.data,h:e.horario,tr:e.trucks_participantes||[]}));
  CARD={};(d.data||[]).forEach(x=>(CARD[x.parceiro_id]=CARD[x.parceiro_id]||[]).push(x))}
 

@@ -62,7 +62,7 @@ function prevR(){const rec=$('r_rec').checked;
 
 function parcForm(){
  const p=P.find(x=>x.id===S.eP)||{},r=REC.find(x=>x.parceiro_id===S.eP)||{recorrente:true},n=REC.filter(x=>x.parceiro_id===S.eP).length,v=x=>E(x??''),rec=r.recorrente!==false;
- return `<div class="bar"><select onchange="pickP(this.value)"><option value="">➕ Novo parceiro</option>${P.map(x=>`<option value="${x.id}" ${x.id===S.eP?'selected':''}>${E(x.n)}</option>`).join('')}</select></div>
+ return `<div class="bar"><select onchange="pickP(this.value)"><option value="">➕ Novo parceiro</option>${CATS.map(c=>P.some(x=>x.c===c)?`<optgroup label="${c}">${P.filter(x=>x.c===c).map(x=>`<option value="${x.id}" ${x.id===S.eP?'selected':''}>${E(x.n)}</option>`).join('')}</optgroup>`:'').join('')}</select></div>
 <h2>${S.eP?'Editar parceiro':'Novo parceiro'}</h2>
 <div class="bar">${fld('Nome da operação',`<input id="f_n" value="${v(p.n)}">`)}${fld('Tipo',`<select id="f_c">${opts(CATS,p.c)}</select>`)}${fld('Culinária',`<input id="f_k" value="${v(p.k)}">`)}</div>
 <div class="bar">${fld('Nome do responsável',`<input id="f_r" value="${v(p.r)}">`)}${fld('Contato (WhatsApp com DDD)',`<input id="f_t" value="${v(p.t)}" placeholder="19999999999">`)}</div>
