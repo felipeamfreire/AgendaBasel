@@ -97,14 +97,16 @@ function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.lo
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
- document.getElementById('nav').innerHTML=[['hoje','Dia'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="view='${k}';render()">${l}</button>`).join('');
+ document.getElementById('nav').innerHTML=[['hoje','Hoje no Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="view='${k}';render()">${l}</button>`).join('');
  const a=document.getElementById('app');let h='';
  if(view==='hoje')h=vHoje();else if(view==='sem')h=vSem();else if(view==='mes')h=vMes();else h=vAdm();
  a.innerHTML=h;
  if(keep){const i=a.querySelector('input[placeholder^="Buscar"]');if(i){i.focus();i.setSelectionRange(99,99)}}}
 function nav(n){cur=addD(cur,n);render()}
+function goDate(v){if(v){cur=pd(v);render()}}
+function goHoje(){cur=new Date();render()}
 function vHoje(){const l=filt(day(cur));const ev=evOn(cur);
- return bar()+`<div class="bar"><button class="btn" onclick="nav(-1)">‹</button><h2 style="margin:0;flex:1;text-align:center">${DIAS[cur.getDay()]}, ${br(cur)}</h2><button class="btn" onclick="nav(1)">›</button></div>`
+ return bar()+`<div class="bar"><button class="btn" onclick="nav(-1)">‹</button><h2 style="margin:0;flex:1;text-align:center">${DIAS[cur.getDay()]}, ${br(cur)}</h2><button class="btn" onclick="nav(1)">›</button></div><div class="bar"><label style="display:flex;align-items:center;gap:6px;flex:1">📅 <input type="date" id="dsel" value="${iso(cur)}" onchange="goDate(this.value)" style="flex:1"></label><button class="btn ${iso(cur)===iso(new Date())?'':'pri'}" ${iso(cur)===iso(new Date())?'disabled style="opacity:.5"':''} onclick="goHoje()">Hoje</button></div>`
  +ev.map(e=>`<div class="ev"><b>🎉 ${e.t}</b><br><small>${e.h}</small></div>`).join('')
  +(l.length?l.map(card).join(''):'<p>Nenhum food truck neste dia.</p>')
  +`<div class="bar"><button class="btn pri" onclick="shareTxt()">Compartilhar Agenda de Hoje</button><button class="btn" onclick="banner()">Gerar banner</button></div>`}
