@@ -53,15 +53,15 @@ function datesOf(r,ate){if(!r.recorrente)return r.data_especifica?[r.data_especi
  let d=pd(r.inicio_recorrencia);d=addD(d,(want-d.getDay()+7)%7);
  const end=pd(r.fim_recorrencia&&r.fim_recorrencia<ate?r.fim_recorrencia:ate),o=[];
  for(;d<=end;d=addD(d,step))o.push(iso(d));return o}
-const prevHTML=r=>{const l=datesOf(r,horizonte());
- return l.length?`<small>Datas geradas (${l.length}): ${l.slice(0,12).map(x=>br(pd(x))).join(', ')}${l.length>12?'…':''}</small>`:'<small>Nenhuma data gerada.</small>'};
+const prevHTML=r=>{const l=datesOf(r,horizonte()),ex=new Set(AG.filter(x=>x.parceiro_id===S.eP).map(x=>x.data)),nv=l.filter(x=>!ex.has(x));
+ return l.length?`<small>Serão adicionadas ${nv.length} data(s)${l.length>nv.length?` (${l.length-nv.length} já existem e serão ignoradas)`:''}: ${nv.slice(0,12).map(x=>br(pd(x))).join(', ')}${nv.length>12?'…':''}</small>`:'<small>Nenhuma data a adicionar.</small>'};
 function prevR(){const rec=$('r_rec').checked;
  $('rec_on').style.display=rec?'':'none';$('rec_off').style.display=rec?'none':'';
  $('prev').innerHTML=prevHTML(rec?{recorrente:true,periodicidade:$('r_per').value,dia_semana:$('r_dia').value,inicio_recorrencia:$('r_i').value,fim_recorrencia:$('r_f').value||null}
   :{recorrente:false,data_especifica:$('r_e').value})}
 
 function parcForm(){
- const p=P.find(x=>x.id===S.eP)||{},r=REC.find(x=>x.parceiro_id===S.eP)||{recorrente:true},n=REC.filter(x=>x.parceiro_id===S.eP).length,v=x=>E(x??''),rec=r.recorrente!==false;
+ const p=P.find(x=>x.id===S.eP)||{},r={recorrente:true},v=x=>E(x??''),rec=r.recorrente!==false;
  return `<div class="bar"><select onchange="pickP(this.value)"><option value="">➕ Novo parceiro</option>${CATS.map(c=>P.some(x=>x.c===c)?`<optgroup label="${c}">${P.filter(x=>x.c===c).map(x=>`<option value="${x.id}" ${x.id===S.eP?'selected':''}>${E(x.n)}</option>`).join('')}</optgroup>`:'').join('')}</select></div>
 <h2>${S.eP?'Editar parceiro':'Novo parceiro'}</h2>
 <div class="bar">${fld('Nome da operação',`<input id="f_n" value="${v(p.n)}">`)}${fld('Tipo',`<select id="f_c">${opts(CATS,p.c)}</select>`)}${fld('Culinária',`<input id="f_k" value="${v(p.k)}">`)}</div>
@@ -69,7 +69,7 @@ function parcForm(){
 <div class="bar">${fld('Logo '+(p.logo?`(atual abaixo; enviar outra substitui)`:''),`<input type="file" id="f_logo" accept="image/*">`)}${p.logo?`<img src="${p.logo}" alt="" style="height:44px;border-radius:6px">`:''}</div>
 ${S.eP?`<div><b>Cardápios atuais</b><div id="cardlist">${cardList(S.eP)}</div></div>`:''}
 <div class="bar">${fld('Adicionar cardápios (várias imagens ou PDF)',`<input type="file" id="f_cards" multiple accept="image/*,.pdf">`)}</div>
-<h2>Escala</h2>${n>1?`<small>Este parceiro tem ${n} regras; aqui aparece a primeira.</small>`:''}
+<h2>Adicionar datas à escala</h2><small>Preencha para <b>acrescentar</b> datas. As datas já agendadas não são alteradas (para removê-las, use "Datas agendadas" abaixo). Deixe em branco para salvar só os dados do parceiro.</small>
 <div class="bar"><label><input type="checkbox" id="r_rec" ${rec?'checked':''} onchange="prevR()"> Recorrente</label></div>
 <div id="rec_on" style="display:${rec?'':'none'}" onchange="prevR()"><div class="bar">${fld('Periodicidade',`<select id="r_per">${opts(['semanal','quinzenal','mensal'],r.periodicidade)}</select>`)}${fld('Dia da semana',`<select id="r_dia">${opts(DIAS,r.dia_semana)}</select>`)}</div>
 <div class="bar">${fld('Início da recorrência',`<input type="date" id="r_i" value="${v(r.inicio_recorrencia)}">`)}${fld('Fim da recorrência (opcional)',`<input type="date" id="r_f" value="${v(r.fim_recorrencia)}">`)}</div></div>
@@ -95,20 +95,22 @@ async function delDates(){const ids=[...document.querySelectorAll('.ag_sel:check
 
 function ruleForm(){
  if($('r_rec').checked){const i=$('r_i').value,f=$('r_f').value;
-  if(!i){alert('Informe a data de início da recorrência.');return false}
+  if(!i){if(f){alert('Informe a data de início da recorrência.');return false}return null}
   if(f&&f<i){alert('A data fim é anterior ao início.');return false}
   return{recorrente:true,periodicidade:$('r_per').value,dia_semana:$('r_dia').value,inicio_recorrencia:i,fim_recorrencia:f||null,data_especifica:null}}
  const e=$('r_e').value;
  return e?{recorrente:false,periodicidade:null,dia_semana:null,inicio_recorrencia:null,fim_recorrencia:null,data_especifica:e}:null}
 
-async function saveRule(pid,rule){const old=REC.find(x=>x.parceiro_id===pid);
- if(old&&rule&&['recorrente','periodicidade','dia_semana','inicio_recorrencia','fim_recorrencia','data_especifica'].every(k=>old[k]===rule[k]))return; // sem mudança
- if(old){ok(await sb.from('agenda_gerada').delete().eq('recorrencia_id',old.id).gte('data',iso(new Date())));
-  if(!rule){ok(await sb.from('recorrencias_parceiro').delete().eq('id',old.id));return}
-  ok(await sb.from('recorrencias_parceiro').update(rule).eq('id',old.id))}
- else if(rule)ok(await sb.from('recorrencias_parceiro').insert({...rule,parceiro_id:pid}));
- else return;
- ok(await sb.rpc('gerar_agenda',{p_ate:horizonte()}))}
+// Apenas ACRESCENTA datas: grava a nova regra e insere só as datas novas dela.
+// Não usa gerar_agenda() para não ressuscitar datas que você excluiu de outras regras.
+async function saveRule(pid,rule){if(!rule)return 0;
+ const dates=datesOf(rule,horizonte());
+ if(!dates.length){alert('A escala informada não gerou nenhuma data. Confira início, fim e dia da semana.');return 0}
+ const ex=new Set(AG.filter(x=>x.parceiro_id===pid).map(x=>x.data)),novas=dates.filter(d=>!ex.has(d));
+ if(!novas.length)return 0;
+ const rr=ok(await sb.from('recorrencias_parceiro').insert({...rule,parceiro_id:pid}).select().single()).data;
+ ok(await sb.from('agenda_gerada').upsert(novas.map(d=>({parceiro_id:pid,recorrencia_id:rr.id,data:d})),{onConflict:'parceiro_id,data',ignoreDuplicates:true}));
+ return novas.length}
 
 async function saveP(){const b=$('btnP');
  try{const g=id=>$(id).value.trim();
@@ -121,8 +123,8 @@ async function saveP(){const b=$('btnP');
   if(id)ok(await T('gravar parceiro',sb.from('parceiros').update(row).eq('id',id)));
   else id=ok(await T('gravar parceiro',sb.from('parceiros').insert(row).select().single())).data.id;
   const L=CARD[id]||[];await addCards(id,$('f_cards').files,L.length?Math.max(...L.map(x=>x.ordem))+1:0);
-  await T('escala e agenda',saveRule(id,rule));
-  S.eP=id;await T('recarregar dados',refresh());alert('Parceiro salvo.')}
+  const n=await T('escala e agenda',saveRule(id,rule));
+  S.eP=id;await T('recarregar dados',refresh());alert('Parceiro salvo.'+(n?` ${n} data(s) adicionada(s).`:''))}
  catch(e){console.error(e);if(e&&e.timeout)alert(e.message);const x=$('btnP');if(x){x.disabled=false;x.textContent='Salvar'}}}
 async function delP(id){if(!confirm('Excluir parceiro, cardápios e agenda dele?'))return;
  ok(await sb.from('parceiros').delete().eq('id',id));S.eP=null;refresh()}
