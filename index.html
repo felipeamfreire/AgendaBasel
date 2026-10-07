@@ -91,7 +91,7 @@ function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.lo
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
- document.getElementById('nav').innerHTML=[['hoje','Hoje no Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}" onclick="view='${k}';render()">${l}</button>`).join('');
+ document.getElementById('nav').innerHTML=[['hoje',' Basel'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}" onclick="view='${k}';render()">${l}</button>`).join('');
  const a=document.getElementById('app');let h='';
  if(view==='hoje')h=vHoje();else if(view==='sem')h=vSem();else if(view==='mes')h=vMes();else h=vAdm();
  a.innerHTML=h;
@@ -117,8 +117,8 @@ function menu(id){const p=P.find(x=>x.id===id),L=CARD[id]||[],mb=document.getEle
  const draw=()=>{const c=L[i];mb.innerHTML=`<b>${p.n} · Cardápio</b>`+(c?`<div class="slide">${/\.pdf$/i.test(c.cardapio_url)?`<a href="${c.cardapio_url}" target="_blank" rel="noopener">Abrir PDF</a>`:`<img src="${c.cardapio_url}" alt="Cardápio" style="max-width:100%;max-height:100%;border-radius:8px">`}</div><small>${i+1} / ${L.length}</small><br>`:'<p>Cardápio ainda não cadastrado.</p>')+`<button class="btn" id="pv">‹</button> <button class="btn" id="nx">›</button> <button class="btn pri" id="cl">Fechar</button>`;
   mb.querySelector('#pv').onclick=()=>{if(L.length){i=(i-1+L.length)%L.length;draw()}};mb.querySelector('#nx').onclick=()=>{if(L.length){i=(i+1)%L.length;draw()}};mb.querySelector('#cl').onclick=()=>document.getElementById('modal').classList.remove('on')};
  draw();document.getElementById('modal').classList.add('on')}
-function shareTxt(){const l=day(cur);let t=`🚚 *Hoje no Basel* 🗓️ ${br(cur)}\n`;
- CATS.forEach(c=>{const x=l.filter(p=>p.c===c);if(x.length)t+=`${EM[c]} *${c}:*\n`+x.map(p=>`• ${p.n} (${p.k})`).join('\n')+'\n'});
+function shareTxt(){const l=day(cur);let t=`🚚 *Hoje no Basel* 🗓️ ${br(cur)}\n \n`;
+ CATS.forEach(c=>{const x=l.filter(p=>p.c===c);if(x.length)t+=`${EM[c]} *${c}:*\n \n`+x.map(p=>`• ${p.n} (${p.k})`).join('\n')+'\n'});
  t+=`📖 _Confira cardápios e a agenda completa em:_ ${location.href}`;
  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener')}
 async function banner(){const l=day(cur),b=document.getElementById('banner');
