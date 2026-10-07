@@ -125,7 +125,7 @@ function menu(id){const p=P.find(x=>x.id===id),L=CARD[id]||[],mb=document.getEle
  const draw=()=>{const c=L[i];mb.innerHTML=`<b>${p.n} · Cardápio</b>`+(c?`<div class="slide">${/\.pdf$/i.test(c.cardapio_url)?`<a href="${c.cardapio_url}" target="_blank" rel="noopener">Abrir PDF</a>`:`<img src="${c.cardapio_url}" alt="Cardápio" onclick="fsOpen(this.src)" style="max-width:100%;max-height:100%;border-radius:8px">`}</div><small>${i+1} / ${L.length}</small><br>`:'<p>Cardápio ainda não cadastrado.</p>')+`<button class="btn" id="pv">‹</button> <button class="btn" id="nx">›</button> <button class="btn pri" id="cl">Fechar</button>`;
   mb.querySelector('#pv').onclick=()=>{if(L.length){i=(i-1+L.length)%L.length;draw()}};mb.querySelector('#nx').onclick=()=>{if(L.length){i=(i+1)%L.length;draw()}};mb.querySelector('#cl').onclick=()=>document.getElementById('modal').classList.remove('on')};
  draw();document.getElementById('modal').classList.add('on')}
-function shareTxt(){const l=day(cur);let t=`🚚 *Hoje no Basel* 🗓️ ${br(cur)}\n`;
+function shareTxt(){const l=day(cur);let t=`🚚 *Hoje no Basel* 🗓️ ${br(cur)}\n\n`;
  CATS.forEach(c=>{const x=l.filter(p=>p.c===c);if(x.length)t+=`${EM[c]} *${c}:*\n`+x.map(p=>`• ${p.n} (${p.k})`).join('\n')+'\n'});
  t+=`📖 _Confira cardápios e a agenda completa em:_ ${location.href}`;
  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener')}
