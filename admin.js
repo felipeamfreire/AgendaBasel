@@ -2,7 +2,8 @@
 // A segurança real é feita pelo banco (RLS em schema.sql); as checagens aqui são só de interface.
 // Depende de globais do index.html: sb, P, EV, AG, REC, CARD, DIAS, CATS, view, cur, load, render, day, iso, pd, br, addD.
 const EMOJIS=['🍔','🍕','🌭','🌮','🥟','🥞','🍢','🍗','🍟','🍝','🍜','🍣','🥪','🥩','🍦','🍩','🍪','🧁','🍰','🍮','🍫','🍬','🍿','🌽','🧀','🥖','🍺','🍻','🍹','🍸','🥤','🧃','☕','🍇','🥥','🍍'];
-const S={user:null,admin:false,tab:'parc',eP:null,eE:null};
+const S={user:null,admin:false,tab:'parc',eP:null,eE:null,vd:'',vc:'',vsent:new Set(),hp:null,hr:90};
+const ST=['Ativo','Confirmado','Pendente Confirmação','Cancelado','Substituído','Faltou'],OKS=['Ativo','Confirmado','Pendente Confirmação'];
 const $=id=>document.getElementById(id);
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ok=r=>{if(r.error){alert(r.error.message);throw r.error}return r};
@@ -153,11 +154,74 @@ async function saveE(){const t=$('e_t').value.trim(),d=$('e_d').value;if(!t||!d)
  S.eE=null;refresh()}
 async function delE(id){if(!confirm('Excluir evento?'))return;ok(await sb.from('eventos_especiais').delete().eq('id',id));if(S.eE===id)S.eE=null;refresh()}
 
+/* ---------- vaga disponível ---------- */
+const vagaMsg=()=>{const dt=pd(S.vd||iso(new Date()));return `Vaga disponível para ${DIAS[dt.getDay()]} ${br(dt)}. Enviado à lista de distribuição, vaga será preenchida por ordem de confirmação.`};
+function vagaTab(){
+ const d=S.vd||iso(new Date()),msg=vagaMsg(),ocup=new Set(AG.filter(x=>x.data===d&&x.status!=='Cancelado').map(x=>x.parceiro_id)),l=P.filter(p=>!S.vc||p.c===S.vc);
+ return `<h2>Vaga disponível</h2><div class="bar"><label>Data <input type="date" value="${d}" onchange="vagaDate(this.value)"></label><select onchange="S.vc=this.value;render()"><option value="">Todas as categorias</option>${CATS.map(c=>`<option ${S.vc===c?'selected':''}>${c}</option>`).join('')}</select></div>
+<div class="ev">${E(msg)}</div><div class="bar"><button class="btn" onclick="copiarVaga()">Copiar mensagem (para o grupo)</button></div>
+<small>Cada parceiro abre uma conversa de WhatsApp. Quem aceitar: toque em <b>Preencher vaga</b> para incluir na agenda.</small>`
+ +l.map(p=>{const wp=wa(p.t),oc=ocup.has(p.id),env=S.vsent.has(p.id);
+  return `<div class="row"><span>${p.ic} <b>${E(p.n)}</b> <small>${E(p.c)} · ${E(p.k)}${oc?' · já agendado neste dia':''}</small></span>`
+  +(oc?'':(wp?`<a class="btn ${env?'':'pri'}" target="_blank" rel="noopener" href="https://wa.me/${wp}?text=${encodeURIComponent(msg)}" onclick="vagaMark(this,${p.id})">${env?'✓ Enviado':'WhatsApp'}</a>`:'<small>sem contato</small>')+`<button class="btn" onclick="vagaFill(${p.id})">Preencher vaga</button>`)+'</div>'}).join('')}
+const vagaDate=v=>{S.vd=v;S.vsent=new Set();render()};
+const vagaMark=(el,id)=>{S.vsent.add(id);el.textContent='✓ Enviado';el.classList.remove('pri')};
+const copiarVaga=()=>navigator.clipboard.writeText(vagaMsg()).then(()=>alert('Mensagem copiada.')).catch(()=>prompt('Copie a mensagem:',vagaMsg()));
+async function vagaFill(id){const d=S.vd||iso(new Date()),p=P.find(x=>x.id===id);
+ if(!confirm(`Agendar ${p.n} em ${br(pd(d))}?`))return;
+ try{const ex=AG.find(x=>x.parceiro_id===id&&x.data===d);
+  if(ex)ok(await sb.from('agenda_gerada').update({status:'Confirmado'}).eq('id',ex.id));
+  else ok(await sb.from('agenda_gerada').insert({parceiro_id:id,data:d,status:'Confirmado'}));
+  await refresh()}catch(e){console.error(e)}}
+
+/* ---------- histórico por parceiro ---------- */
+function histTab(){
+ if(S.hp)return histDet(S.hp);
+ const hj=iso(new Date()),de=S.hr?iso(addD(new Date(),-S.hr)):'0000-00-00',T={r:0,c:0,s:0,f:0};
+ const linhas=P.map(p=>{const a=AG.filter(x=>x.parceiro_id===p.id),pas=a.filter(x=>x.data<hj&&x.data>=de),n=s=>pas.filter(x=>x.status===s).length,
+  r=pas.filter(x=>OKS.includes(x.status)).length,c=n('Cancelado'),s=n('Substituído'),f=n('Faltou'),
+  prox=a.filter(x=>x.data>=hj&&OKS.includes(x.status)).map(x=>x.data).sort()[0];
+  T.r+=r;T.c+=c;T.s+=s;T.f+=f;
+  return `<tr><td><a href="#" onclick="S.hp=${p.id};render();return false">${p.ic} ${E(p.n)}</a></td><td>${r}</td><td>${c}</td><td>${s}</td><td>${f}</td><td>${prox?br(pd(prox)):'—'}</td></tr>`}).join('');
+ return `<style>.ht{width:100%;border-collapse:collapse;font-size:.85rem}.ht th,.ht td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}.ht td+td,.ht th+th{text-align:center}</style>
+<h2>Histórico por parceiro</h2><div class="bar"><select onchange="S.hr=+this.value;render()">${[[30,'Últimos 30 dias'],[90,'Últimos 90 dias'],[365,'Últimos 12 meses'],[0,'Todo o período']].map(([v,l])=>`<option value="${v}" ${S.hr===v?'selected':''}>${l}</option>`).join('')}</select></div>
+<div style="overflow-x:auto"><table class="ht"><thead><tr><th>Parceiro</th><th>Realizadas</th><th>Canceladas</th><th>Substituídas</th><th>Faltas</th><th>Próxima</th></tr></thead><tbody>${linhas}</tbody><tfoot><tr><th>Total</th><th>${T.r}</th><th>${T.c}</th><th>${T.s}</th><th>${T.f}</th><th></th></tr></tfoot></table></div>
+<small>"Realizada" = data passada que não foi cancelada, substituída nem marcada como falta. O sistema não sabe se o truck compareceu: para registrar faltas, abra o parceiro e mude o status da data.</small>`}
+function histDet(id){const p=P.find(x=>x.id===id)||{n:'?',ic:''},hj=iso(new Date()),a=AG.filter(x=>x.parceiro_id===id).sort((x,y)=>x.data<y.data?1:-1);
+ return `<div class="bar"><button class="btn" onclick="S.hp=null;render()">‹ Voltar</button><b>${p.ic} ${E(p.n)}</b></div>`
+ +(a.length?a.map(x=>`<div class="row"><span>${DIAS[pd(x.data).getDay()]} ${br(pd(x.data))}${x.data>=hj?' <small>(futura)</small>':''}</span><select onchange="setSt(${x.id},this.value)">${ST.map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join(''):'<small>Sem datas.</small>')}
+async function setSt(id,v){try{ok(await sb.from('agenda_gerada').update({status:v}).eq('id',id));const g=AG.find(x=>x.id===id);if(g)g.status=v}catch(e){render()}}
+
+/* ---------- backup ---------- */
+const bkpQuando=()=>{try{return +localStorage.getItem('bkp')||0}catch(e){return 0}};
+function bkpAviso(){const t=bkpQuando(),d=t?Math.floor((Date.now()-t)/864e5):null;
+ return d===null?'<br>⚠️ Nenhum backup feito neste navegador (aba Backup).':d>7?`<br>⚠️ Último backup há ${d} dias (aba Backup).`:''}
+function bkpTab(){const t=bkpQuando();
+ return `<h2>Backup</h2><p>Último backup neste navegador: <b>${t?new Date(t).toLocaleString('pt-BR'):'nunca'}</b></p>
+<div class="bar"><button class="btn pri" onclick="bkpSql()">Backup completo (.sql)</button><button class="btn" onclick="bkpCsv('p')">Parceiros (.csv)</button><button class="btn" onclick="bkpCsv('a')">Agenda (.csv)</button></div>
+<small>O <b>.sql</b> restaura tudo em um projeto novo (rode antes o <code>schema.sql</code>). Os <b>.csv</b> abrem no Excel/Power Query. As <b>imagens</b> (logos e cardápios) ficam no Storage e <b>não</b> entram no backup — só os links; guarde os arquivos originais. Guarde o backup fora do GitHub: ele contém telefones.</small>`}
+async function pegaTudo(){const o={};for(const t of['parceiros','cardapios_parceiro','recorrencias_parceiro','agenda_gerada','eventos_especiais'])o[t]=await todas(t);return o}
+const sqlV=v=>v==null?'null':typeof v==='number'||typeof v==='boolean'?String(v):Array.isArray(v)?`'{${v.join(',')}}'`:`'${String(v).replace(/'/g,"''")}'`;
+function sqlDe(d){let s=`-- Backup Agenda Basel — ${new Date().toLocaleString('pt-BR')}\n-- Restaurar: projeto novo > rode schema.sql > rode este arquivo no SQL Editor.\n-- Imagens (Storage) NÃO estão incluídas; apenas as URLs.\nbegin;\n`;
+ for(const [t,rows] of Object.entries(d)){if(!rows.length)continue;const cols=Object.keys(rows[0]);
+  for(let i=0;i<rows.length;i+=500)s+=`insert into ${t} (${cols.join(',')}) overriding system value values\n`+rows.slice(i,i+500).map(r=>`(${cols.map(c=>sqlV(r[c])).join(',')})`).join(',\n')+';\n';
+  s+=`select setval(pg_get_serial_sequence('${t}','id'),(select max(id) from ${t}));\n`}
+ return s+'commit;\n'}
+function baixar(nome,txt,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:tipo+';charset=utf-8'}));a.download=nome;document.body.appendChild(a);a.click();a.remove()}
+const csvL=a=>a.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';');
+const marcaBkp=()=>{try{localStorage.setItem('bkp',Date.now())}catch(e){}};
+async function bkpSql(){try{const d=await T('ler dados',pegaTudo());baixar(`backup-basel-${iso(new Date())}.sql`,sqlDe(d),'text/plain');marcaBkp();
+ alert(`Backup gerado: ${d.parceiros.length} parceiros, ${d.agenda_gerada.length} datas, ${d.eventos_especiais.length} eventos.`);render()}catch(e){console.error(e);if(e&&e.timeout)alert(e.message)}}
+async function bkpCsv(k){try{let linhas;
+ if(k==='p'){const r=await T('ler parceiros',todas('parceiros'));linhas=[['id','nome_operacao','categoria','culinaria','nome_responsavel','contato_responsavel','emoji','logo_url'],...r.map(x=>[x.id,x.nome_operacao,x.categoria,x.culinaria,x.nome_responsavel,x.contato_responsavel,x.emoji,x.logo_url])]}
+ else{const r=await T('ler agenda',todas('agenda_gerada'));linhas=[['parceiro','categoria','data','dia_semana','status'],...r.map(x=>{const p=P.find(y=>y.id===x.parceiro_id)||{};return[p.n,p.c,br(pd(x.data)),DIAS[pd(x.data).getDay()],x.status]}).sort((x,y)=>0)]}
+ baixar(`${k==='p'?'parceiros':'agenda'}-basel-${iso(new Date())}.csv`,'\uFEFF'+linhas.map(csvL).join('\r\n'),'text/csv');marcaBkp();render()}catch(e){console.error(e);if(e&&e.timeout)alert(e.message)}}
+
 /* ---------- view principal ---------- */
 function adminView(){
  if(!S.user)return `<div class="adm"><b>Painel Administrativo</b><p>Acesso restrito. Entre com a conta Google autorizada.</p><button class="btn pri" onclick="login()">Entrar com Google</button></div>`;
  if(!S.admin)return '';
  const tab=(k,l)=>`<button class="btn ${S.tab===k?'pri':''}" onclick="setTab('${k}')">${l}</button>`;
- return `<div class="adm">${E(S.user.email)} <button class="btn" onclick="logout()">Sair</button></div>
-<div class="bar">${tab('parc','Parceiros')}${tab('com','Comunicação')}${tab('ev','Eventos')}</div>`
- +(S.tab==='parc'?parcForm():S.tab==='com'?comTab():evTab())}
+ return `<div class="adm">${E(S.user.email)} <button class="btn" onclick="logout()">Sair</button>${bkpAviso()}</div>
+<div class="bar">${tab('parc','Parceiros')}${tab('com','Comunicação')}${tab('vaga','Vagas')}${tab('ev','Eventos')}${tab('hist','Histórico')}${tab('bkp','Backup')}</div>`
+ +({parc:parcForm,com:comTab,vaga:vagaTab,ev:evTab,hist:histTab,bkp:bkpTab}[S.tab]||parcForm)()}
