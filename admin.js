@@ -1,6 +1,7 @@
 // Painel administrativo (3 abas: Parceiros, Comunicação, Eventos).
 // A segurança real é feita pelo banco (RLS em schema.sql); as checagens aqui são só de interface.
 // Depende de globais do index.html: sb, P, EV, AG, REC, CARD, DIAS, CATS, view, cur, load, render, day, iso, pd, br, addD.
+const EMOJIS=['🍔','🍕','🌭','🌮','🥟','🥞','🍢','🍗','🍟','🍝','🍜','🍣','🥪','🥩','🍦','🍩','🍪','🧁','🍰','🍮','🍫','🍬','🍿','🌽','🧀','🥖','🍺','🍻','🍹','🍸','🥤','🧃','☕','🍇','🥥','🍍'];
 const S={user:null,admin:false,tab:'parc',eP:null,eE:null};
 const $=id=>document.getElementById(id);
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -66,6 +67,8 @@ function parcForm(){
 <h2>${S.eP?'Editar parceiro':'Novo parceiro'}</h2>
 <div class="bar">${fld('Nome da operação',`<input id="f_n" value="${v(p.n)}">`)}${fld('Tipo',`<select id="f_c">${opts(CATS,p.c)}</select>`)}${fld('Culinária',`<input id="f_k" value="${v(p.k)}">`)}</div>
 <div class="bar">${fld('Nome do responsável',`<input id="f_r" value="${v(p.r)}">`)}${fld('Contato (WhatsApp com DDD)',`<input id="f_t" value="${v(p.t)}" placeholder="19999999999">`)}</div>
+<div class="bar">${fld('Ícone (emoji) do parceiro — aparece na mensagem e nos calendários',`<input id="f_e" maxlength="8" value="${v(p.em)}" placeholder="vazio = ícone da categoria" style="font-size:1.3rem">`)}</div>
+<div class="bar" style="gap:4px">${EMOJIS.map(e=>`<button type="button" class="btn" style="padding:4px 8px;font-size:1.2rem" onclick="$('f_e').value='${e}'">${e}</button>`).join('')}</div>
 <div class="bar">${fld('Logo '+(p.logo?`(atual abaixo; enviar outra substitui)`:''),`<input type="file" id="f_logo" accept="image/*">`)}${p.logo?`<img src="${p.logo}" alt="" style="height:44px;border-radius:6px">`:''}</div>
 ${S.eP?`<div><b>Cardápios atuais</b><div id="cardlist">${cardList(S.eP)}</div></div>`:''}
 <div class="bar">${fld('Adicionar cardápios (várias imagens ou PDF)',`<input type="file" id="f_cards" multiple accept="image/*,.pdf">`)}</div>
@@ -117,7 +120,7 @@ async function saveP(){const b=$('btnP');
   if(!g('f_n')||!g('f_k')){alert('Informe nome da operação e culinária.');return}
   const rule=ruleForm();if(rule===false)return;
   b.disabled=true;b.textContent='Salvando…';
-  const row={nome_operacao:g('f_n'),categoria:$('f_c').value,culinaria:g('f_k'),nome_responsavel:g('f_r')||null,contato_responsavel:g('f_t').replace(/\D/g,'')||null};
+  const row={nome_operacao:g('f_n'),categoria:$('f_c').value,culinaria:g('f_k'),nome_responsavel:g('f_r')||null,contato_responsavel:g('f_t').replace(/\D/g,'')||null,emoji:g('f_e')||null};
   const lf=$('f_logo').files[0];if(lf){const s=await squeeze(lf);if(s)row.logo_url=await up(s,'logos')}
   let id=S.eP;
   if(id)ok(await T('gravar parceiro',sb.from('parceiros').update(row).eq('id',id)));
