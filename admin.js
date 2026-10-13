@@ -2,7 +2,7 @@
 // A segurança real é feita pelo banco (RLS em schema.sql); as checagens aqui são só de interface.
 // Depende de globais do index.html: sb, P, EV, AG, REC, CARD, DIAS, CATS, view, cur, load, render, day, iso, pd, br, addD.
 const EMOJIS=['🍔','🍕','🌭','🌮','🥟','🥞','🍢','🍗','🍟','🍝','🍜','🍣','🥪','🥩','🍦','🍩','🍪','🧁','🍰','🍮','🍫','🍬','🍿','🌽','🧀','🥖','🍺','🍻','🍹','🍸','🥤','🧃','☕','🍇','🥥','🍍'];
-const S={user:null,admin:false,tab:'parc',eP:null,eE:null,vd:'',vc:'',vsent:new Set(),hp:null,hr:90};
+const S={user:null,admin:false,tab:'parc',eP:null,eE:null,vd:'',vc:'',vsent:new Set(),hp:null,hr:90,env:[],envErr:'',cmsg:null,cnome:'resp',cf:'pend',cc:''};
 const ST=['Ativo','Confirmado','Pendente Confirmação','Cancelado','Substituído','Faltou'],OKS=['Ativo','Confirmado','Pendente Confirmação'];
 const $=id=>document.getElementById(id);
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -37,7 +37,7 @@ async function addCards(id,files,ini){let o=ini;for(const f of files){const s=aw
  ok(await sb.from('cardapios_parceiro').insert({parceiro_id:id,cardapio_url:await up(s,'cardapios'),ordem:o++}))}}
 
 /* ---------- abas ---------- */
-const setTab=t=>{S.tab=t;render()};
+const setTab=async t=>{S.tab=t;if(t==='camp')await carregaEnv();render()};
 const pickP=v=>{S.eP=v?+v:null;render()};
 const setE=id=>{S.eE=id;render();window.scrollTo(0,0)};
 
@@ -192,6 +192,53 @@ function histDet(id){const p=P.find(x=>x.id===id)||{n:'?',ic:''},hj=iso(new Date
  +(a.length?a.map(x=>`<div class="row"><span>${DIAS[pd(x.data).getDay()]} ${br(pd(x.data))}${x.data>=hj?' <small>(futura)</small>':''}</span><select onchange="setSt(${x.id},this.value)">${ST.map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join(''):'<small>Sem datas.</small>')}
 async function setSt(id,v){try{ok(await sb.from('agenda_gerada').update({status:v}).eq('id',id));const g=AG.find(x=>x.id===id);if(g)g.status=v}catch(e){render()}}
 
+/* ---------- campanha de comunicados (levantamento 2027) ---------- */
+const CAMP='forms-2027';
+const CAMP_MSG=`Olá {nome}, tudo bem?
+
+Estamos estruturando o planejamento e a grade de operação dos food trucks para 2027 e queremos contar com a parceria de vocês para construirmos um calendário variado e proveitoso para todos.
+Para isso, preparamos um formulário rápido para levantamento de intenção, dias de interesse e periodicidade.
+
+⚠️ Pontos importantes:
+• O preenchimento representa uma pesquisa de intenção, e não uma garantia automática de confirmação das datas escolhidas.
+• Para garantir que seja rentável para os parceiros, seguiremos com apenas 1 operação por tipo (salgado, bebida, doce) por dia, salvo acordos pontuais combinados entre as partes.
+
+Por favor, preencha o formulário abaixo com as preferências e disponibilidades da sua operação:
+👇 https://forms.gle/iUhu5VmDRfwDZ34b6
+
+Prazo final para resposta: 19/10/2026
+Qualquer dúvida, estou à disposição!`;
+function campTpl(){if(S.cmsg==null){try{S.cmsg=localStorage.getItem('campMsg')}catch(e){}if(S.cmsg==null)S.cmsg=CAMP_MSG}return S.cmsg}
+const campNome=p=>{const r=(p.r||'').trim().split(/\s+/)[0];return S.cnome==='op'||!r?p.n:r};
+const campMsg=p=>campTpl().replace(/\{nome\}/g,()=>campNome(p));
+const campSalva=v=>{S.cmsg=v;try{localStorage.setItem('campMsg',v)}catch(e){}};
+const campReset=()=>{S.cmsg=CAMP_MSG;try{localStorage.removeItem('campMsg')}catch(e){}render()};
+async function carregaEnv(){S.envErr='';const r=await sb.from('envios_campanha').select('*').eq('campanha',CAMP);if(r.error){S.envErr=r.error.message;S.env=[]}else S.env=r.data||[]}
+function campTab(){
+ if(S.envErr)return `<h2>Campanha</h2><p>Não foi possível ler os envios: ${E(S.envErr)}</p><small>Se a tabela ainda não existe, rode o <code>campanha_2027.sql</code> no SQL Editor do Supabase.</small>`;
+ const env=new Map(S.env.map(x=>[x.parceiro_id,x])),sent=p=>!!(env.get(p.id)||{}).enviado_em,resp=p=>!!(env.get(p.id)||{}).respondeu;
+ const nEnv=P.filter(sent).length,nResp=P.filter(resp).length,semTel=P.filter(p=>!wa(p.t)).length;
+ const filtros={todos:()=>true,pend:p=>!sent(p),env:sent,semresp:p=>!resp(p)};
+ const l=P.filter(p=>(!S.cc||p.c===S.cc)&&filtros[S.cf](p));
+ const fmt=x=>new Date(x).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+ return `<h2>Campanha: levantamento 2027</h2>
+<div class="ev"><b>${nEnv} de ${P.length}</b> com o botão de envio clicado · <b>${nResp}</b> marcados como "respondeu" (marcação manual)${semTel?` · ${semTel} sem telefone`:''}<br><small>O registro conta o clique no botão; o site não consegue confirmar que a mensagem foi realmente enviada.</small></div>
+<details><summary><b>Mensagem</b> (use {nome} onde entra o nome)</summary>
+<div class="bar"><label>Tratar por <select onchange="S.cnome=this.value;render()"><option value="resp" ${S.cnome==='resp'?'selected':''}>Primeiro nome do responsável</option><option value="op" ${S.cnome==='op'?'selected':''}>Nome da operação</option></select></label><button class="btn" onclick="campReset()">Restaurar texto padrão</button></div>
+<textarea rows="14" style="width:100%" oninput="campSalva(this.value)">${E(campTpl())}</textarea><small>O texto editado fica salvo neste navegador.</small></details>
+<div class="bar"><select onchange="S.cf=this.value;render()">${[['pend','Ainda não enviados'],['env','Já clicados'],['semresp','Sem resposta'],['todos','Todos']].map(([v,t])=>`<option value="${v}" ${S.cf===v?'selected':''}>${t}</option>`).join('')}</select><select onchange="S.cc=this.value;render()"><option value="">Todas as categorias</option>${CATS.map(c=>`<option ${S.cc===c?'selected':''}>${c}</option>`).join('')}</select></div>`
+ +(l.map(p=>{const e=env.get(p.id)||{},tel=wa(p.t);
+  return `<div class="row"><span>${p.ic} <b>${E(p.n)}</b> <small>${E(p.c)}${p.r?' · '+E(p.r):''}<br>${e.enviado_em?'✓ botão clicado em '+fmt(e.enviado_em):'não enviado'}</small></span>`
+  +(tel?`<button class="btn ${e.enviado_em?'':'pri'}" onclick="campEnviar(${p.id})">${e.enviado_em?'Reenviar':'Enviar WhatsApp'}</button>`:'<small>sem telefone</small>')
+  +(e.enviado_em?`<button class="btn" onclick="campMarca(${p.id},{enviado_em:null})">Desfazer</button>`:'')
+  +`<label><input type="checkbox" ${e.respondeu?'checked':''} onchange="campMarca(${p.id},{respondeu:this.checked})"> Respondeu</label></div>`}).join('')||'<p>Nenhum parceiro neste filtro.</p>')}
+function campEnviar(id){const p=P.find(x=>x.id===id),tel=wa(p&&p.t);if(!tel)return;
+ window.open(`https://wa.me/${tel}?text=${encodeURIComponent(campMsg(p))}`,'_blank','noopener'); // abre primeiro (evita bloqueio de pop-up)
+ campMarca(id,{enviado_em:new Date().toISOString()})}
+async function campMarca(id,campos){try{
+ const r=ok(await sb.from('envios_campanha').upsert({campanha:CAMP,parceiro_id:id,...campos},{onConflict:'campanha,parceiro_id'}).select().single()).data,i=S.env.findIndex(x=>x.parceiro_id===id);
+ if(i<0)S.env.push(r);else S.env[i]=r;render()}catch(e){console.error(e);await carregaEnv();render()}}
+
 /* ---------- backup ---------- */
 const bkpQuando=()=>{try{return +localStorage.getItem('bkp')||0}catch(e){return 0}};
 function bkpAviso(){const t=bkpQuando(),d=t?Math.floor((Date.now()-t)/864e5):null;
@@ -200,7 +247,7 @@ function bkpTab(){const t=bkpQuando();
  return `<h2>Backup</h2><p>Último backup neste navegador: <b>${t?new Date(t).toLocaleString('pt-BR'):'nunca'}</b></p>
 <div class="bar"><button class="btn pri" onclick="bkpSql()">Backup completo (.sql)</button><button class="btn" onclick="bkpCsv('p')">Parceiros (.csv)</button><button class="btn" onclick="bkpCsv('a')">Agenda (.csv)</button></div>
 <small>O <b>.sql</b> restaura tudo em um projeto novo (rode antes o <code>schema.sql</code>). Os <b>.csv</b> abrem no Excel/Power Query. As <b>imagens</b> (logos e cardápios) ficam no Storage e <b>não</b> entram no backup — só os links; guarde os arquivos originais. Guarde o backup fora do GitHub: ele contém telefones.</small>`}
-async function pegaTudo(){const o={};for(const t of['parceiros','cardapios_parceiro','recorrencias_parceiro','agenda_gerada','eventos_especiais'])o[t]=await todas(t);return o}
+async function pegaTudo(){const o={};for(const t of['parceiros','cardapios_parceiro','recorrencias_parceiro','agenda_gerada','eventos_especiais','envios_campanha'])o[t]=await todas(t);return o}
 const sqlV=v=>v==null?'null':typeof v==='number'||typeof v==='boolean'?String(v):Array.isArray(v)?`'{${v.join(',')}}'`:`'${String(v).replace(/'/g,"''")}'`;
 function sqlDe(d){let s=`-- Backup Agenda Basel — ${new Date().toLocaleString('pt-BR')}\n-- Restaurar: projeto novo > rode schema.sql > rode este arquivo no SQL Editor.\n-- Imagens (Storage) NÃO estão incluídas; apenas as URLs.\nbegin;\n`;
  for(const [t,rows] of Object.entries(d)){if(!rows.length)continue;const cols=Object.keys(rows[0]);
@@ -223,5 +270,5 @@ function adminView(){
  if(!S.admin)return '';
  const tab=(k,l)=>`<button class="btn ${S.tab===k?'pri':''}" onclick="setTab('${k}')">${l}</button>`;
  return `<div class="adm">${E(S.user.email)} <button class="btn" onclick="logout()">Sair</button>${bkpAviso()}</div>
-<div class="bar">${tab('parc','Parceiros')}${tab('com','Comunicação')}${tab('vaga','Vagas')}${tab('ev','Eventos')}${tab('hist','Histórico')}${tab('bkp','Backup')}</div>`
- +({parc:parcForm,com:comTab,vaga:vagaTab,ev:evTab,hist:histTab,bkp:bkpTab}[S.tab]||parcForm)()}
+<div class="bar">${tab('parc','Parceiros')}${tab('com','Comunicação')}${tab('vaga','Vagas')}${tab('ev','Eventos')}${tab('hist','Histórico')}${tab('camp','Campanha')}${tab('bkp','Backup')}</div>`
+ +({parc:parcForm,com:comTab,vaga:vagaTab,ev:evTab,hist:histTab,camp:campTab,bkp:bkpTab}[S.tab]||parcForm)()}
