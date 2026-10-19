@@ -81,10 +81,11 @@ let P=[],EV=[],AG=[],REC=[],CARD={};
 // Lê todas as linhas (o Supabase devolve no máximo 1000 por consulta).
 async function todas(t){let o=[],i=0;for(;;){const r=await sb.from(t).select('*').order('id').range(i,i+999);if(r.error){console.error(r.error);break}o=o.concat(r.data);if(r.data.length<1000)break;i+=1000}return o}
 async function load(){
- const [a,b,c,d,r]=await Promise.all([sb.from(S.admin?'parceiros':'parceiros_publico').select('*'),todas('agenda_gerada'),sb.from('eventos_especiais').select('*').order('data'),sb.from('cardapios_parceiro').select('*').order('ordem'),sb.from('recorrencias_parceiro').select('*')]);
+ const [a,b,c,d,r,ct]=await Promise.all([sb.from(S.admin?'parceiros':'parceiros_publico').select('*'),todas('agenda_gerada'),sb.from('eventos_especiais').select('*').order('data'),sb.from('cardapios_parceiro').select('*').order('ordem'),sb.from('recorrencias_parceiro').select('*'),sb.rpc('contatos_hoje')]);
  if(a.error)console.error(a.error);
  REC=r.data||[];AG=b||[];
- P=(a.data||[]).map(p=>({id:p.id,n:p.nome_operacao,c:p.categoria,k:p.culinaria,r:p.nome_responsavel,t:p.contato_responsavel||'',logo:p.logo_url,em:p.emoji||'',ic:p.emoji||EM[p.categoria]||'🍽️',fx:REC.some(x=>x.parceiro_id===p.id&&x.recorrente)}))
+ const CT=new Map((ct&&ct.data||[]).map(x=>[x.parceiro_id,x.contato])); // só quem está agendado HOJE (regra no banco)
+ P=(a.data||[]).map(p=>({id:p.id,n:p.nome_operacao,c:p.categoria,k:p.culinaria,r:p.nome_responsavel,t:p.contato_responsavel||CT.get(p.id)||'',logo:p.logo_url,em:p.emoji||'',ic:p.emoji||EM[p.categoria]||'🍽️',fx:REC.some(x=>x.parceiro_id===p.id&&x.recorrente)}))
   .sort((x,y)=>CATS.indexOf(x.c)-CATS.indexOf(y.c)||x.n.localeCompare(y.n,'pt-BR',{sensitivity:'base'}));
  EV=(c.data||[]).map(e=>({...e,t:e.titulo,d:e.data,h:e.horario,tr:e.trucks_participantes||[]}));
  CARD={};(d.data||[]).forEach(x=>(CARD[x.parceiro_id]=CARD[x.parceiro_id]||[]).push(x))}
@@ -104,7 +105,7 @@ const tag=p=>p.fx?'<span class="tag fx">Parceiro Fixo</span>':'<span class="tag"
 function filt(l){return l.filter(p=>(!f.cat||p.c===f.cat)&&(!f.cul||p.k===f.cul)&&(!f.q||p.n.toLowerCase().includes(f.q.toLowerCase())))}
 const telWa=t=>{t=String(t||'').replace(/\D/g,'');return t&&t.length<=11?'55'+t:t};
 const telFmt=t=>{t=String(t||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');return t.length===11?`(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`:t.length===10?`(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`:t};
-function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${p.ic} ${p.c} · ${p.k}</small><br>${tag(p)}${p.t?`<br><a class="wa" href="https://wa.me/${telWa(p.t)}" target="_blank" rel="noopener">💬 ${telFmt(p.t)}</a>`:''}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
+function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${p.ic} ${p.c} · ${p.k}</small><br>${tag(p)}${p.t&&(S.admin||iso(cur)===iso(new Date()))?`<br><a class="wa" href="https://wa.me/${telWa(p.t)}" target="_blank" rel="noopener">💬 ${telFmt(p.t)}</a>`:''}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
