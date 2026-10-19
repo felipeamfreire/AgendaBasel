@@ -11,7 +11,7 @@ O workflow `.github/workflows/keepalive.yml` faz uma leitura diária para evitar
 
 ## Se o projeto for perdido
 1. Crie um projeto novo no Supabase.
-2. SQL Editor: rode `schema.sql`, depois `migracao_historico.sql` e `emoji_parceiros.sql` (parte 1).
+2. SQL Editor: rode `schema.sql`, depois `migracao_historico.sql`, `emoji_parceiros.sql` (parte 1), `campanha_2027.sql` e `contato_hoje.sql`.
 3. SQL Editor: rode o arquivo `backup-basel-AAAA-MM-DD.sql`.
 4. Atualize `config.js` com a nova URL e chave; refaça o login Google (README, passo 2).
 5. Reenvie as imagens de logos e cardápios pelo painel (as URLs antigas deixam de existir).
