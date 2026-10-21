@@ -49,16 +49,24 @@ async function mvC(pid,id,dir){const l=CARD[pid]||[],i=l.findIndex(x=>x.id===id)
  ok(await sb.from('cardapios_parceiro').update({ordem:l[j].ordem}).eq('id',l[i].id));
  ok(await sb.from('cardapios_parceiro').update({ordem:l[i].ordem}).eq('id',l[j].id));reloadCards()}
 
+// Nª ocorrência do dia da semana no mês (n=1..4) ou a última (n=5). Independe de o mês ter 4 ou 5 semanas.
+function nthDow(y,m,dow,n){if(n>=5){const u=new Date(y,m+1,0,12);return addD(u,-((u.getDay()-dow+7)%7))}
+ const f=new Date(y,m,1,12);return addD(f,(dow-f.getDay()+7)%7+7*(n-1))}
 function datesOf(r){if(!r.recorrente)return r.data_especifica?[r.data_especifica]:[];if(!r.inicio_recorrencia||!r.fim_recorrencia)return[]; // início e fim são obrigatórios
+ if(r.periodicidade==='mensal'&&r.semana_do_mes){const i=pd(r.inicio_recorrencia),e=pd(r.fim_recorrencia),dow=DIAS.indexOf(r.dia_semana),o=[];
+  for(let y=i.getFullYear(),m=i.getMonth();y<e.getFullYear()||(y===e.getFullYear()&&m<=e.getMonth());m++){if(m>11){m=0;y++}
+   const d=nthDow(y,m,dow,r.semana_do_mes);if(d>=i&&d<=e)o.push(iso(d))}
+  return o}
  const step={semanal:7,quinzenal:14,mensal:28}[r.periodicidade],want=DIAS.indexOf(r.dia_semana);
  let d=pd(r.inicio_recorrencia);d=addD(d,(want-d.getDay()+7)%7);
  const end=pd(r.fim_recorrencia),o=[];
  for(;d<=end;d=addD(d,step))o.push(iso(d));return o}
 const prevHTML=r=>{const l=datesOf(r),ex=new Set(AG.filter(x=>x.parceiro_id===S.eP).map(x=>x.data)),nv=l.filter(x=>!ex.has(x));
  return l.length?`<small>Serão adicionadas ${nv.length} data(s)${l.length>nv.length?` (${l.length-nv.length} já existem e serão ignoradas)`:''}: ${nv.slice(0,12).map(x=>br(pd(x))).join(', ')}${nv.length>12?'…':''}</small>`:'<small>Nenhuma data a adicionar.</small>'};
-function prevR(){const rec=$('r_rec').checked;
+const perDe=()=>{const p=$('r_per').value;return p==='nth'?{periodicidade:'mensal',semana_do_mes:+$('r_n').value}:{periodicidade:p}};
+function prevR(){const rec=$('r_rec').checked;$('r_nw').style.display=$('r_per').value==='nth'?'':'none';
  $('rec_on').style.display=rec?'':'none';$('rec_off').style.display=rec?'none':'';
- $('prev').innerHTML=prevHTML(rec?{recorrente:true,periodicidade:$('r_per').value,dia_semana:$('r_dia').value,inicio_recorrencia:$('r_i').value,fim_recorrencia:$('r_f').value||null}
+ $('prev').innerHTML=prevHTML(rec?{recorrente:true,...perDe(),dia_semana:$('r_dia').value,inicio_recorrencia:$('r_i').value,fim_recorrencia:$('r_f').value||null}
   :{recorrente:false,data_especifica:$('r_e').value})}
 
 function parcForm(){
@@ -74,7 +82,7 @@ ${S.eP?`<div><b>Cardápios atuais</b><div id="cardlist">${cardList(S.eP)}</div><
 <div class="bar">${fld('Adicionar cardápios (várias imagens ou PDF)',`<input type="file" id="f_cards" multiple accept="image/*,.pdf">`)}</div>
 <h2>Adicionar datas à escala</h2><small>Preencha para <b>acrescentar</b> datas. As datas já agendadas não são alteradas (para removê-las, use "Datas agendadas" abaixo). Deixe em branco para salvar só os dados do parceiro.</small>
 <div class="bar"><label><input type="checkbox" id="r_rec" ${rec?'checked':''} onchange="prevR()"> Recorrente</label></div>
-<div id="rec_on" style="display:${rec?'':'none'}" onchange="prevR()"><div class="bar">${fld('Periodicidade',`<select id="r_per">${opts(['semanal','quinzenal','mensal'],r.periodicidade)}</select>`)}${fld('Dia da semana',`<select id="r_dia">${opts(DIAS,r.dia_semana)}</select>`)}</div>
+<div id="rec_on" style="display:${rec?'':'none'}" onchange="prevR()"><div class="bar">${fld('Periodicidade',`<select id="r_per"><option value="semanal">semanal</option><option value="quinzenal">quinzenal</option><option value="mensal">mensal (a cada 28 dias)</option><option value="nth">mensal (na Nª semana do mês)</option></select>`)}<div id="r_nw" style="display:none;flex:1;min-width:150px">${fld('Qual semana do mês',`<select id="r_n">${[[1,'1ª'],[2,'2ª'],[3,'3ª'],[4,'4ª'],[5,'Última']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>`)}</div>${fld('Dia da semana',`<select id="r_dia">${opts(DIAS,r.dia_semana)}</select>`)}</div>
 <div class="bar">${fld('Início da recorrência',`<input type="date" id="r_i" value="${v(r.inicio_recorrencia)}">`)}${fld('Fim da recorrência (obrigatório)',`<input type="date" id="r_f" value="${v(r.fim_recorrencia)}">`)}</div></div>
 <div id="rec_off" style="display:${rec?'none':''}" onchange="prevR()"><div class="bar">${fld('Data pontual',`<input type="date" id="r_e" value="${v(r.data_especifica)}">`)}</div></div>
 <div id="prev">${prevHTML(r)}</div>
@@ -102,7 +110,8 @@ function ruleForm(){
   if(!i||!f){alert('Informe a data de início e a data de fim da recorrência.');return false}
   if(f<i){alert('A data fim é anterior ao início.');return false}
   if((pd(f)-pd(i))/864e5>1100&&!confirm('O período passa de 3 anos. Confirmar?'))return false;
-  return{recorrente:true,periodicidade:$('r_per').value,dia_semana:$('r_dia').value,inicio_recorrencia:i,fim_recorrencia:f,data_especifica:null}}
+  return{recorrente:true,...perDe(),dia_semana:$('r_dia').value,inicio_recorrencia:i,fim_recorrencia:f,data_especifica:null} // semana_do_mes só é enviado quando usado
+ }
  const e=$('r_e').value;
  return e?{recorrente:false,periodicidade:null,dia_semana:null,inicio_recorrencia:null,fim_recorrencia:null,data_especifica:e}:null}
 
