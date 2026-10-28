@@ -107,20 +107,24 @@ function day(d,inc){const k=iso(d),ev=evOn(d),out=[];
 let view='hoje',cur=new Date(),f={cat:'',cul:'',q:''},admin=false;
 const tag=p=>p.fx?'<span class="tag fx">Parceiro Fixo</span>':'<span class="tag">Parceiro Extra</span>';
 function filt(l){return l.filter(p=>(!f.cat||p.c===f.cat)&&(!f.cul||p.k===f.cul)&&(!f.q||p.n.toLowerCase().includes(f.q.toLowerCase())))}
+const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function gc(nome,titulo){try{if(typeof S!=='undefined'&&S.admin)return;
+ if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:'evt-'+nome,title:titulo||nome,event:true})}catch(e){}}
+const gcP=(tipo,id)=>{const p=P.find(x=>x.id===id);if(p)gc(tipo+'-'+slug(p.n),(tipo==='cardapio'?'Cardápio: ':'WhatsApp: ')+p.n)};
 const telWa=t=>{t=String(t||'').replace(/\D/g,'');return t&&t.length<=11?'55'+t:t};
 const telFmt=t=>{t=String(t||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');return t.length===11?`(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`:t.length===10?`(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`:t};
-function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${p.ic} ${p.c} · ${p.k}</small><br>${tag(p)}${p.t&&(S.admin||iso(cur)===iso(new Date()))?`<br><a class="wa" href="https://wa.me/${telWa(p.t)}" target="_blank" rel="noopener">💬 ${telFmt(p.t)}</a>`:''}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
+function card(p){return `<div class="card">${p.logo?`<img class="av" src="${p.logo}" alt="" style="object-fit:cover">`:`<div class="av">${p.n[0]}</div>`}<div class="i"><b>${p.n}</b><small>${p.ic} ${p.c} · ${p.k}</small><br>${tag(p)}${p.t&&(S.admin||iso(cur)===iso(new Date()))?`<br><a class="wa" href="https://wa.me/${telWa(p.t)}" target="_blank" rel="noopener" onclick="gcP('whatsapp',${p.id})">💬 ${telFmt(p.t)}</a>`:''}</div><button class="btn" onclick="menu(${p.id})">Cardápio</button></div>`}
 function bar(){const cu=[...new Set(P.map(p=>p.k))];
  return `<div class="bar"><input placeholder="Buscar food truck" value="${f.q}" oninput="f.q=this.value;render(1)"><select onchange="f.cat=this.value;render()"><option value="">Categoria</option>${CATS.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="f.cul=this.value;render()"><option value="">Culinária</option>${cu.map(c=>`<option ${f.cul===c?'selected':''}>${c}</option>`).join('')}</select></div>`}
 function render(keep){
- document.getElementById('nav').innerHTML=[['hoje','Dia'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="view='${k}';render()">${l}</button>`).join('');
+ document.getElementById('nav').innerHTML=[['hoje','Dia'],['sem','Semana'],['mes','Mês'],['adm','🔒 Admin']].map(([k,l])=>`<button class="${view===k?'on':''}${k==='adm'?' adm-btn':''}" onclick="${k==='adm'?'':`gc('aba-${k}');`}view='${k}';render()">${l}</button>`).join('');
  const a=document.getElementById('app');let h='';
  if(view==='hoje')h=vHoje();else if(view==='sem')h=vSem();else if(view==='mes')h=vMes();else h=vAdm();
  a.innerHTML=h;
  if(keep){const i=a.querySelector('input[placeholder^="Buscar"]');if(i){i.focus();i.setSelectionRange(99,99)}}}
 function nav(n){cur=addD(cur,n);render()}
-function goDate(v){if(v){cur=pd(v);render()}}
-function goHoje(){cur=new Date();render()}
+function goDate(v){if(v){gc('escolher-data','Escolher data no calendário');cur=pd(v);render()}}
+function goHoje(){gc('botao-hoje','Botão Hoje');cur=new Date();render()}
 function vHoje(){const l=filt(day(cur));const ev=evOn(cur);
  return bar()+`<div class="bar"><button class="btn" onclick="nav(-1)">‹</button><h2 style="margin:0;flex:1;text-align:center">${DIAS[cur.getDay()]}, ${br(cur)}</h2><button class="btn" onclick="nav(1)">›</button></div><div class="bar"><label style="display:flex;align-items:center;gap:6px;flex:1">📅 <input type="date" id="dsel" value="${iso(cur)}" onchange="goDate(this.value)" style="flex:1"></label><button class="btn ${iso(cur)===iso(new Date())?'':'pri'}" ${iso(cur)===iso(new Date())?'disabled style="opacity:.5"':''} onclick="goHoje()">Hoje</button></div>`
  +ev.map(e=>`<div class="ev"><b>🎉 ${e.t}</b><br><small>${e.h}</small></div>`).join('')
@@ -137,11 +141,11 @@ function vMes(){const y=cur.getFullYear(),m=cur.getMonth(),first=new Date(y,m,1)
   c+=`<div class="c ${e?'ev':''} ${iso(d)===iso(new Date())?'t':''}" onclick="cur=new Date(${y},${m},${i},12);view='hoje';render()">${i}${e?' 🎉':''}<br>${l.length?`<span class="em">${l.slice(0,9).map(p=>p.ic).join('')}${l.length>9?`<small> +${l.length-9}</small>`:''}</span>`:''}</div>`}
  return bar()+`<div class="bar"><button class="btn" onclick="cur=new Date(${y},${m-1},1,12);render()">‹</button><h2 style="margin:0;flex:1;text-align:center">${cur.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h2><button class="btn" onclick="cur=new Date(${y},${m+1},1,12);render()">›</button></div><div class="cal">${DIAS.map(d=>`<div class="h">${d.slice(0,3)}</div>`).join('')}${c}</div>`}
 function vAdm(){return adminView()}
-function menu(id){const p=P.find(x=>x.id===id),L=CARD[id]||[],mb=document.getElementById('mb');let i=0;
+function menu(id){gcP('cardapio',id);const p=P.find(x=>x.id===id),L=CARD[id]||[],mb=document.getElementById('mb');let i=0;
  const draw=()=>{const c=L[i];mb.innerHTML=`<b>${p.n} · Cardápio</b>`+(c?`<div class="slide">${/\.pdf$/i.test(c.cardapio_url)?`<a href="${c.cardapio_url}" target="_blank" rel="noopener">Abrir PDF</a>`:`<img src="${c.cardapio_url}" alt="Cardápio" onclick="fsOpen(this.src)" style="max-width:100%;max-height:100%;border-radius:8px">`}</div><small>${i+1} / ${L.length}</small><br>`:'<p>Cardápio ainda não cadastrado.</p>')+`<button class="btn" id="pv">‹</button> <button class="btn" id="nx">›</button> <button class="btn pri" id="cl">Fechar</button>`;
   mb.querySelector('#pv').onclick=()=>{if(L.length){i=(i-1+L.length)%L.length;draw()}};mb.querySelector('#nx').onclick=()=>{if(L.length){i=(i+1)%L.length;draw()}};mb.querySelector('#cl').onclick=()=>document.getElementById('modal').classList.remove('on')};
  draw();document.getElementById('modal').classList.add('on')}
-function shareTxt(){
+function shareTxt(){gc('compartilhar-agenda','Compartilhar agenda');
  const link=location.origin+location.pathname,l=day(cur),hoje=iso(cur)===iso(new Date()),
   WD=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],dm=d=>br(d).slice(0,5),
   lista=a=>a.length>1?a.slice(0,-1).join(', ')+' e '+a[a.length-1]:a[0]||'',
