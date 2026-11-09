@@ -61,8 +61,12 @@ function datesOf(r){if(!r.recorrente)return r.data_especifica?[r.data_especifica
  let d=pd(r.inicio_recorrencia);d=addD(d,(want-d.getDay()+7)%7);
  const end=pd(r.fim_recorrencia),o=[];
  for(;d<=end;d=addD(d,step))o.push(iso(d));return o}
-const prevHTML=r=>{const l=datesOf(r),ex=new Set(AG.filter(x=>x.parceiro_id===S.eP).map(x=>x.data)),nv=l.filter(x=>!ex.has(x));
- return l.length?`<small>Serão adicionadas ${nv.length} data(s)${l.length>nv.length?` (${l.length-nv.length} já existem e serão ignoradas)`:''}: ${nv.slice(0,12).map(x=>br(pd(x))).join(', ')}${nv.length>12?'…':''}</small>`:'<small>Nenhuma data a adicionar.</small>'};
+let LASTD=[];
+function copiarDatas(b){const t=LASTD.join('\n'),fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()};
+ const done=()=>{const o=b.textContent;b.textContent='Copiado ✓';setTimeout(()=>b.textContent=o,1800)};
+ (navigator.clipboard&&window.isSecureContext?navigator.clipboard.writeText(t).catch(fb):Promise.resolve(fb())).then(done)}
+const prevHTML=r=>{const l=datesOf(r);LASTD=l.map(x=>br(pd(x)));const ex=new Set(AG.filter(x=>x.parceiro_id===S.eP).map(x=>x.data)),nv=l.filter(x=>!ex.has(x));
+ return l.length?`<small>Serão adicionadas ${nv.length} data(s)${l.length>nv.length?` (${l.length-nv.length} já existem e serão ignoradas)`:''}: ${nv.slice(0,12).map(x=>br(pd(x))).join(', ')}${nv.length>12?'…':''}</small> <button type="button" class="btn" style="margin-left:6px" onclick="copiarDatas(this)">Copiar todas as ${l.length} datas</button>`:'<small>Nenhuma data a adicionar.</small>'};
 const perDe=()=>{const p=$('r_per').value;return p==='nth'?{periodicidade:'mensal',semana_do_mes:+$('r_n').value}:{periodicidade:p}};
 function prevR(){const rec=$('r_rec').checked;$('r_nw').style.display=$('r_per').value==='nth'?'':'none';
  $('rec_on').style.display=rec?'':'none';$('rec_off').style.display=rec?'none':'';
